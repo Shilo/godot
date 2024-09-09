@@ -33,10 +33,9 @@
 #include "editor/editor_file_system.h"
 #include "editor/editor_log.h"
 #include "editor/editor_node.h"
-#include "editor/editor_scale.h"
 #include "editor/editor_settings.h"
 #include "editor/gui/editor_toaster.h"
-#include "scene/scene_string_names.h"
+#include "editor/themes/editor_scale.h"
 #include "servers/rendering_server.h"
 
 SurfaceUpgradeTool *SurfaceUpgradeTool::singleton = nullptr;
@@ -76,6 +75,7 @@ void SurfaceUpgradeTool::_try_show_popup() {
 	} else {
 		singleton->_show_popup();
 	}
+	RS::get_singleton()->set_warn_on_surface_upgrade(false);
 }
 
 void SurfaceUpgradeTool::_show_popup() {
@@ -105,7 +105,7 @@ void SurfaceUpgradeTool::prepare_upgrade() {
 	EditorSettings::get_singleton()->set_project_metadata("surface_upgrade_tool", "resave_paths", resave_paths);
 
 	// Delay to avoid deadlocks, since this dialog can be triggered by loading a scene.
-	MessageQueue::get_singleton()->push_callable(callable_mp(EditorNode::get_singleton(), &EditorNode::restart_editor));
+	callable_mp(EditorNode::get_singleton(), &EditorNode::restart_editor).call_deferred();
 }
 
 // Ensure that the warnings and popups are skipped.
@@ -122,11 +122,13 @@ void SurfaceUpgradeTool::finish_upgrade() {
 
 	// Update all meshes here.
 	Vector<String> resave_paths = EditorSettings::get_singleton()->get_project_metadata("surface_upgrade_tool", "resave_paths", Vector<String>());
-	EditorProgress ep("surface_upgrade_resave", TTR("Upgrading All Meshes in Project"), resave_paths.size());
+	Vector<String> reimport_paths = EditorSettings::get_singleton()->get_project_metadata("surface_upgrade_tool", "reimport_paths", Vector<String>());
+	EditorProgress ep("surface_upgrade_resave", TTR("Upgrading All Meshes in Project"), resave_paths.size() + reimport_paths.size());
 
+	int step = 0;
 	for (const String &file_path : resave_paths) {
 		Ref<Resource> res = ResourceLoader::load(file_path);
-		ep.step(TTR("Attempting to re-save ") + file_path);
+		ep.step(TTR("Attempting to re-save ") + file_path, step++);
 		if (res.is_valid()) {
 			// Ignore things that fail to load.
 			ResourceSaver::save(res);
@@ -135,7 +137,6 @@ void SurfaceUpgradeTool::finish_upgrade() {
 	EditorSettings::get_singleton()->set_project_metadata("surface_upgrade_tool", "resave_paths", Vector<String>());
 
 	// Remove the imported scenes/meshes from .import so they will be reimported automatically after this.
-	Vector<String> reimport_paths = EditorSettings::get_singleton()->get_project_metadata("surface_upgrade_tool", "reimport_paths", Vector<String>());
 	for (const String &file_path : reimport_paths) {
 		Ref<ConfigFile> config;
 		config.instantiate();
@@ -149,6 +150,8 @@ void SurfaceUpgradeTool::finish_upgrade() {
 		if (remap_path.is_empty()) {
 			continue;
 		}
+
+		ep.step(TTR("Attempting to remove ") + remap_path, step++);
 
 		String path = OS::get_singleton()->get_resource_dir() + remap_path.replace_first("res://", "/");
 		print_verbose("Moving to trash: " + path);
@@ -187,7 +190,7 @@ void SurfaceUpgradeDialog::_notification(int p_what) {
 	switch (p_what) {
 		case NOTIFICATION_READY:
 			// Can't do it in the constructor because it doesn't know that the signal exists.
-			connect("confirmed", callable_mp(SurfaceUpgradeTool::get_singleton(), &SurfaceUpgradeTool::prepare_upgrade));
+			connect(SceneStringName(confirmed), callable_mp(SurfaceUpgradeTool::get_singleton(), &SurfaceUpgradeTool::prepare_upgrade));
 			break;
 	}
 }

@@ -31,9 +31,9 @@
 #include "editor_network_profiler.h"
 
 #include "core/os/os.h"
-#include "editor/editor_scale.h"
 #include "editor/editor_settings.h"
 #include "editor/editor_string_names.h"
+#include "editor/themes/editor_scale.h"
 
 void EditorNetworkProfiler::_bind_methods() {
 	ADD_SIGNAL(MethodInfo("enable_profiling", PropertyInfo(Variant::BOOL, "enable")));
@@ -74,8 +74,8 @@ void EditorNetworkProfiler::_update_theme_item_cache() {
 	theme_cache.incoming_bandwidth_icon = get_theme_icon(SNAME("ArrowDown"), EditorStringName(EditorIcons));
 	theme_cache.outgoing_bandwidth_icon = get_theme_icon(SNAME("ArrowUp"), EditorStringName(EditorIcons));
 
-	theme_cache.incoming_bandwidth_color = get_theme_color(SNAME("font_color"), EditorStringName(Editor));
-	theme_cache.outgoing_bandwidth_color = get_theme_color(SNAME("font_color"), EditorStringName(Editor));
+	theme_cache.incoming_bandwidth_color = get_theme_color(SceneStringName(font_color), EditorStringName(Editor));
+	theme_cache.outgoing_bandwidth_color = get_theme_color(SceneStringName(font_color), EditorStringName(Editor));
 }
 
 void EditorNetworkProfiler::_refresh() {
@@ -227,10 +227,10 @@ void EditorNetworkProfiler::add_sync_frame_data(const SyncInfo &p_frame) {
 		sync_data[p_frame.synchronizer].outgoing_syncs += p_frame.outgoing_syncs;
 	}
 	SyncInfo &info = sync_data[p_frame.synchronizer];
-	if (info.incoming_syncs) {
+	if (p_frame.incoming_syncs) {
 		info.incoming_size = p_frame.incoming_size / p_frame.incoming_syncs;
 	}
-	if (info.outgoing_syncs) {
+	if (p_frame.outgoing_syncs) {
 		info.outgoing_size = p_frame.outgoing_size / p_frame.outgoing_syncs;
 	}
 }
@@ -260,12 +260,12 @@ EditorNetworkProfiler::EditorNetworkProfiler() {
 	activate = memnew(Button);
 	activate->set_toggle_mode(true);
 	activate->set_text(TTR("Start"));
-	activate->connect("pressed", callable_mp(this, &EditorNetworkProfiler::_activate_pressed));
+	activate->connect(SceneStringName(pressed), callable_mp(this, &EditorNetworkProfiler::_activate_pressed));
 	hb->add_child(activate);
 
 	clear_button = memnew(Button);
 	clear_button->set_text(TTR("Clear"));
-	clear_button->connect("pressed", callable_mp(this, &EditorNetworkProfiler::_clear_pressed));
+	clear_button->connect(SceneStringName(pressed), callable_mp(this, &EditorNetworkProfiler::_clear_pressed));
 	hb->add_child(clear_button);
 
 	hb->add_spacer();

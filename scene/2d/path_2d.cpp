@@ -34,7 +34,7 @@
 #include "scene/main/timer.h"
 
 #ifdef TOOLS_ENABLED
-#include "editor/editor_scale.h"
+#include "editor/themes/editor_scale.h"
 #endif
 
 #ifdef TOOLS_ENABLED
@@ -146,8 +146,8 @@ void Path2D::_notification(int p_what) {
 
 					for (int i = 0; i < sample_count; i++) {
 						const Vector2 p = r[i].get_origin();
-						const Vector2 side = r[i].columns[0];
-						const Vector2 forward = r[i].columns[1];
+						const Vector2 side = r[i].columns[1];
+						const Vector2 forward = r[i].columns[0];
 
 						// Fish Bone.
 						w[0] = p + (side - forward) * 5;
@@ -232,8 +232,8 @@ void PathFollow2D::_update_transform() {
 
 	if (rotates) {
 		Transform2D xform = c->sample_baked_with_rotation(progress, cubic);
-		xform.translate_local(v_offset, h_offset);
-		set_rotation(xform[1].angle());
+		xform.translate_local(h_offset, v_offset);
+		set_rotation(xform[0].angle());
 		set_position(xform[2]);
 	} else {
 		Vector2 pos = c->sample_baked(progress, cubic);
@@ -288,7 +288,7 @@ void PathFollow2D::_validate_property(PropertyInfo &p_property) const {
 }
 
 PackedStringArray PathFollow2D::get_configuration_warnings() const {
-	PackedStringArray warnings = Node::get_configuration_warnings();
+	PackedStringArray warnings = Node2D::get_configuration_warnings();
 
 	if (is_visible_in_tree() && is_inside_tree()) {
 		if (!Object::cast_to<Path2D>(get_parent())) {
@@ -378,9 +378,10 @@ real_t PathFollow2D::get_progress() const {
 }
 
 void PathFollow2D::set_progress_ratio(real_t p_ratio) {
-	if (path && path->get_curve().is_valid() && path->get_curve()->get_baked_length()) {
-		set_progress(p_ratio * path->get_curve()->get_baked_length());
-	}
+	ERR_FAIL_NULL_MSG(path, "Can only set progress ratio on a PathFollow2D that is the child of a Path2D which is itself part of the scene tree.");
+	ERR_FAIL_COND_MSG(path->get_curve().is_null(), "Can't set progress ratio on a PathFollow2D that does not have a Curve.");
+	ERR_FAIL_COND_MSG(!path->get_curve()->get_baked_length(), "Can't set progress ratio on a PathFollow2D that has a 0 length curve.");
+	set_progress(p_ratio * path->get_curve()->get_baked_length());
 }
 
 real_t PathFollow2D::get_progress_ratio() const {
